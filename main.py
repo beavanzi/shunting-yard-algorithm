@@ -22,7 +22,7 @@ class Node:
 
 
 class Tree:
-    
+
     def __init__(self):
         root = None
         height = None
@@ -112,7 +112,7 @@ def evalStep():
     return 0
 
 
-def parser(tokens: list):
+def shuntingYard(tokens: list):
     stack = Stack()
     queue = Queue()
 
@@ -141,6 +141,13 @@ def parser(tokens: list):
         print("Operação Inválida!")
         exit(0)
 
+    return queue
+
+
+def parser(tokens: list):
+
+    queue = shuntingYard(tokens)
+
     # Reverter a queue pra que a ordem de avaliação das expressões fique correta
     queue.reverseQueue()
 
@@ -154,6 +161,7 @@ def parser(tokens: list):
 
 def lexer(op: str):
     tokens = op.split(" ")
+    # Precisa fazer uma funcao que nao leia com espaços? (Perguntar)
 
     # Adiçao de parenteses na expressão geral para que a parse funcione corretamente
     tokens.insert(0, "(")
@@ -162,10 +170,23 @@ def lexer(op: str):
     return tokens
 
 
-if __name__ == '__main__':
-    # arr = ["+", "/", "-", 3, 9, 18, 4]
+def run_tests():
 
-    operation = "4 + 18 / ( 9 - 3 )"
-    tokens = lexer(operation)
-    parser(tokens)
+    testCases = {
+        0: ("4 + 18 / ( 9 - 3 )", ['(', '4', '+', '18', '/', '(', '9', '-', '3', ')', ')'], ['4', '18', '9', '3', '-', '/', '+']),
+        1: ("4 + 18 / ( 9 - 3 )", ['(', '4', '+', '18', '/', '(', '9', '-', '3', ')', ')'], ['4', '18', '9', '3', '-', '/', '+'])
+    }
+
+    for key, case in testCases.items():
+        operation = case[0]
+
+        lexerResponse = lexer(operation)
+        assert lexerResponse == case[1]
+
+        shuntingYardResponse = shuntingYard(lexerResponse)
+        assert shuntingYardResponse.getItems() == case[2]
+
+
+if __name__ == '__main__':
+    run_tests()
 
