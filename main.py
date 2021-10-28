@@ -1,9 +1,11 @@
 class Node:
+    def __init__(self, value: str):
+        self.value: str = value
+        self.rightChild: Node or None = None
+        self.leftChild: Node or None = None
 
-    def __init__(self, value: object):
+    def setValue(self, value: str):
         self.value = value
-        self.rightChild = None
-        self.leftChild = None
 
     def setRightChild(self, right):
         self.rightChild = right
@@ -22,17 +24,20 @@ class Node:
 
 
 class Tree:
+    def __init__(self, root: Node):
+        self.root = root
 
-    def __init__(self):
-        root = None
-        height = None
+    def getHeight(self):
+        return self.height
 
-    def toString(self):
-        return 0
+    def getRootValue(self):
+        return self.root.getValue()
+
+    def getRoot(self):
+        return self.root
 
 
 class Stack:
-
     def __init__(self):
         self.items = []
 
@@ -53,7 +58,6 @@ class Stack:
 
 
 class Queue:
-
     def __init__(self):
         self.items = []
 
@@ -80,20 +84,23 @@ def isOperator(op):
     return op == "+" or op == "-" or op == "*" or op == "/"
 
 
-def toTree(arr: list, elem: str or Node or int):
-    if elem is not Node:
-        node = Node(elem)
-    else:
-        node = elem
+def thereIsNoRightChild(node: Node):
+    return node.getRightChild() is None
+
+
+def thereIsNoLeftChild(node: Node):
+    return node.getLeftChild() is None
+
+
+def toTree(arr: list, node: str or Node, tree: Tree):
 
     if isOperator(node.getValue()):
-        if node.getRightChild() is None:
-            node.setRightChild(arr.pop(0))
-            toTree(arr, node.getRightChild())
-        if node.getLeftChild() is None:
-            node.setLeftChild(arr.pop(0))
-            toTree(arr, node.getLeftChild())
-    print(node.getValue())
+        if thereIsNoRightChild(node):
+            node.setRightChild(Node(arr.pop(0)))
+            toTree(arr, node.getRightChild(), tree)
+        if thereIsNoLeftChild(node):
+            node.setLeftChild(Node(arr.pop(0)))
+            toTree(arr, node.getLeftChild(), tree)
 
 
 def popAndEnqueueInternalParentesisContent(stack, queue):
@@ -107,9 +114,69 @@ def popAndEnqueue(stack, queue):
     if item != "(" or item != ")":
         queue.enqueue(item)
 
-
-def evalStep():
+def toString(tree: Tree):
+    # if isOperator(node.getValue()):
+    #     right: Node = node.getRightChild()
+    #     left: Node = node.getLeftChild()
+    #     if isOperator(left.getValue()):
+    #         return toString(left)
+    #     elif isOperator(right.getValue()):
+    #         return toString(right)
+    # else:
+    #     return
     return 0
+
+
+def evaluate(right: int, left: int, operation: str):
+    if operation == "+":
+        return right + left
+    elif operation == "-":
+        return right - left
+    elif operation == "*":
+        return right*left
+    elif operation == "/":
+        if left != 0:
+            return right/left
+        else:
+            print("Divisão por zero não permitida.")
+            exit(0)
+
+
+def walkToOperation(node: Node):
+    if isOperator(node.getValue()):
+        right: Node = node.getRightChild()
+        left: Node = node.getLeftChild()
+        if not isOperator(right.getValue()) and not isOperator(left.getValue()):
+            return node
+        else:
+            if isOperator(left.getValue()):
+                return walkToOperation(left)
+            elif isOperator(right.getValue()):
+                return walkToOperation(right)
+
+
+def evalStep(tree: Tree):
+    # toString(tree)
+    root: Node = tree.getRoot()
+
+    while isOperator(root.getValue()):
+        # Descendo até o ultimo nó antes das folhas mais inferiores
+        node = walkToOperation(root)
+
+        # Casting para int
+        right = ord(node.getRightChild().getValue())
+        left = ord(node.getLeftChild().getValue())
+        operation = node.getValue()
+
+        # Avaliando a operaçao
+        result = evaluate(right, left, operation)
+
+        # Substituindo na arvore
+        node.setValue(chr(result))
+        node.setRightChild(None)
+        node.setLeftChild(None)
+
+        # toString(tree)
 
 
 def shuntingYard(tokens: list):
@@ -117,18 +184,16 @@ def shuntingYard(tokens: list):
     queue = Queue()
 
     priorityOne = ["+", "-"]
-    priorityZero = ["*", "/"]
+    priorityZero = ["/", "*"]
 
     for token in tokens:
         if isOperator(token):
-            if stack.size() > 0 and stack.peek() in priorityZero:
-                if token in priorityZero:
-                    stack.push(token)
-                elif token in priorityOne:
+            if stack.size() > 0:
+                top = stack.peek()
+                while stack.size() > 0 and top in priorityZero and (token in priorityOne or token in priorityZero):
                     popAndEnqueue(stack, queue)
-                    stack.push(token)
-            else:
-                stack.push(token)
+                    top = stack.peek()
+            stack.push(token)
         elif token == "(":
             stack.push(token)
         elif token == ")":
@@ -145,36 +210,42 @@ def shuntingYard(tokens: list):
 
 
 def parser(tokens: list):
-
     queue = shuntingYard(tokens)
 
     # Reverter a queue pra que a ordem de avaliação das expressões fique correta
     queue.reverseQueue()
 
-    root = queue.dequeue()
+    rootElem = queue.dequeue()
+    rootNode = Node(rootElem)
 
     # Transformando a queue em lista simples para que seja mais fácil de lidar
     listOfNodes = queue.getItems()
 
-    toTree(listOfNodes, root)
+    tree = Tree(rootNode)
+    toTree(listOfNodes, rootNode, tree)
+
+    return tree
 
 
 def lexer(op: str):
     tokens = op.split(" ")
-    # Precisa fazer uma funcao que nao leia com espaços? (Perguntar)
 
     # Adiçao de parenteses na expressão geral para que a parse funcione corretamente
     tokens.insert(0, "(")
-    tokens.insert(-1, ")")
+    tokens.append(")")
 
     return tokens
 
 
-def run_tests():
+def runTests():
 
     testCases = {
-        0: ("4 + 18 / ( 9 - 3 )", ['(', '4', '+', '18', '/', '(', '9', '-', '3', ')', ')'], ['4', '18', '9', '3', '-', '/', '+']),
-        1: ("4 + 18 / ( 9 - 3 )", ['(', '4', '+', '18', '/', '(', '9', '-', '3', ')', ')'], ['4', '18', '9', '3', '-', '/', '+'])
+        0: ("4 + 18 / ( 9 - 3 )", ['(', '4', '+', '18', '/', '(', '9', '-', '3', ')', ')'], ['4', '18', '9', '3', '-', '/', '+'], '+', ('-', '9', '3')),
+        1: ("7 * 100 / ( 20 - 10 ) + 15 * 3", ['(', '7', '*', '100', '/', '(', '20', '-', '10', ')', '+', '15', '*', '3', ')'], ['7', '100', '*', '20', '10', '-', '/', '15', '3', '*', '+'], '+', ('*', '7', '100'))
+        # 2: ("(1 + 2 + 3) * 4"),
+        # 3: ("(10 / 3 + 23) * (1 - 4)"),
+        # 4: ("58 - -8 * (58 + 31) - -14"),
+        # 5: ("-71 * (-76 * 91 * (10 - 5 - -82) - -79)"),
     }
 
     for key, case in testCases.items():
@@ -186,7 +257,15 @@ def run_tests():
         shuntingYardResponse = shuntingYard(lexerResponse)
         assert shuntingYardResponse.getItems() == case[2]
 
+        parserResponse = parser(lexerResponse)
+        assert parserResponse.getRootValue() == case[3]
+
+        operationResponse = walkToOperation(parserResponse.getRoot())
+        assert operationResponse.getValue() == case[4][0]
+        assert operationResponse.getLeftChild().getValue() == case[4][1]
+        assert operationResponse.getRightChild().getValue() == case[4][2]
+
 
 if __name__ == '__main__':
-    run_tests()
+    runTests()
 
