@@ -103,7 +103,6 @@ def thereIsNoLeftChild(node: Node):
 
 
 def toTree(arr: list, node: str or Node, tree: Tree):
-
     if isOperator(node.getValue()):
         if thereIsNoRightChild(node):
             node.setRightChild(Node(arr.pop(0)))
@@ -125,11 +124,17 @@ def popAndEnqueue(stack, queue):
         queue.enqueue(item)
 
 
-def isChildLowPriority(node: Node, child: Node):
-    priorityOne = ["+", "-"]
-    priorityZero = ["/", "*"]
+def getPriority(token: str) -> int:
+    if token == '+' or token == '-':
+        return 0
+    elif token == "/" or token == '*':
+        return 1
+    else:
+        return -1
 
-    return child.getValue() in priorityOne and node.getValue() in priorityZero
+
+def isChildLowPriority(node: Node, child: Node):
+    return getPriority(child.getValue()) == 1 and getPriority(node.getValue()) == 0
 
 
 def toString(node: Node, tree: Tree):
@@ -137,23 +142,28 @@ def toString(node: Node, tree: Tree):
         right: Node = node.getRightChild()
         left: Node = node.getLeftChild()
         if left.getValue() is not None:
-            childWithLowPriority = isChildLowPriority(node, left)
-            if childWithLowPriority:
+            # Se o nó filho tem prioridade menor que o pai, então adicionar parenteses,
+            # leftChildWithLowPriority controla isso
+            leftChildWithLowPriority = isChildLowPriority(node, left)
+            if leftChildWithLowPriority:
                 tree.appendListNodes("(")
             toString(left, tree)
-            tree.appendListNodes(node.getValue())
-            if childWithLowPriority:
+            if leftChildWithLowPriority:
                 tree.appendListNodes(")")
+            tree.appendListNodes(node.getValue())
         if right.getValue() is not None:
-            childWithLowPriority = isChildLowPriority(node, right)
-            if childWithLowPriority:
+            # Se o nó filho tem prioridade menor que o pai, então adicionar parenteses
+            # rightChildWithLowPriority controla isso
+            rightChildWithLowPriority = isChildLowPriority(node, right)
+            if rightChildWithLowPriority:
                 tree.appendListNodes("(")
             toString(right, tree)
-            if childWithLowPriority:
+            if rightChildWithLowPriority:
                 tree.appendListNodes(")")
     else:
         tree.appendListNodes(node.getValue())
 
+    # Depois de adicionar tudo listNode, parsear a listNode para string
     if node == tree.getRoot():
         print(tree.listNodesToString())
 
@@ -203,27 +213,29 @@ def evalStep(tree: Tree):
         result = evaluate(right, left, operation)
 
         # Substituindo na arvore
-        # Essa formataçao é pra tirar as casas decimais do float se necessario
-        node.setValue('{0:.2f}'.format(result).rstrip('0').rstrip('.'))
+        node.setValue(str(int(result)))
         node.setRightChild(None)
         node.setLeftChild(None)
 
+        # Limpando a lista antiga de nós
         tree.clearListNodes()
+
+        # Printando a arvore depois de uma avaliaçao
         toString(tree.getRoot(), tree)
+
+    return int(tree.getRoot().getValue())
 
 
 def shuntingYard(tokens: list):
     stack = Stack()
     queue = Queue()
 
-    priorityOne = ["+", "-"]
-    priorityZero = ["/", "*"]
-
+    # Aplicação do algoritmo shunting yard
     for token in tokens:
         if isOperator(token):
             if stack.size() > 0:
                 top = stack.peek()
-                while stack.size() > 0 and top in priorityZero and (token in priorityOne or token in priorityZero):
+                while stack.size() > 0 and getPriority(top) >= getPriority(token):
                     popAndEnqueue(stack, queue)
                     top = stack.peek()
             stack.push(token)
@@ -273,12 +285,17 @@ def lexer(op: str):
 def runTests():
 
     testCases = {
-        0: ("4 + 18 / ( 9 - 3 )", ['(', '4', '+', '18', '/', '(', '9', '-', '3', ')', ')'], ['4', '18', '9', '3', '-', '/', '+'], '+', ('-', '9', '3')),
-        1: ("7 * 100 / ( 20 - 10 ) + 15 * 3", ['(', '7', '*', '100', '/', '(', '20', '-', '10', ')', '+', '15', '*', '3', ')'], ['7', '100', '*', '20', '10', '-', '/', '15', '3', '*', '+'], '+', ('*', '7', '100'))
-        # 2: ("(1 + 2 + 3) * 4"),
-        # 3: ("(10 / 3 + 23) * (1 - 4)"),
-        # 4: ("58 - -8 * (58 + 31) - -14"),
-        # 5: ("-71 * (-76 * 91 * (10 - 5 - -82) - -79)"),
+        0: ("4 + 18 / ( 9 - 3 )", ['(', '4', '+', '18', '/', '(', '9', '-', '3', ')', ')'], ['4', '18', '9', '3', '-', '/', '+'], '+', ('-', '9', '3'), 7),
+        1: ("7 * 100 / ( 20 - 10 ) + 15 * 3", ['(', '7', '*', '100', '/', '(', '20', '-', '10', ')', '+', '15', '*', '3', ')'], ['7', '100', '*', '20', '10', '-', '/', '15', '3', '*', '+'], '+', ('*', '7', '100'), 115),
+        2: ("( 1 + 2 + 3 ) * 4", ['(', '(', '1', '+', '2', '+', '3', ')', '*', '4', ')'], ['1', '2', '+', '3', '+', '4', '*'], '*', ('+', '1', '2'), 24),
+        3: ("( ( 1 + 3 ) * 8 + 1 ) / 3", ['(', '(', '(', '1', '+', '3', ')', '*', '8', '+', '1', ')', '/', '3', ')'], ['1', '3', '+', '8', '*', '1', '+', '3', '/'], '/', ('+', '1', '3'), 11),
+        4: ("( 10 / 3 + 23 ) * ( 1 - 4 )", ['(', '(', '10', '/', '3', '+', '23', ')', '*', '(', '1', '-', '4', ')', ')'], ['10', '3', '/', '23', '+', '1', '4', '-', '*'], '*', ('/', '10', '3'), -78),
+        5: ("58 - -8 * ( 58 + 31 ) - -14", ['(', '58', '-', '-8', '*', '(', '58', '+', '31', ')', '-', '-14', ')'], ['58', '-8', '58', '31', '+', '*', '-', '-14', '-'], '-', ('+', '58', '31'), 784),
+        6: ("-71 * ( -76 * 91 * ( 10 - 5 - -82 ) - -79 )", ['(', '-71', '*', '(', '-76', '*', '91', '*', '(', '10', '-', '5', '-', '-82', ')', '-', '-79', ')', ')'], ['-71', '-76', '91', '*', '10', '5', '-', '-82', '-', '*', '-79', '-', '*'], '*', ('*', '-76', '91'), 42714523),
+        7: ("10 * 20 + 3 * 7 + 2 * 3 + 10 / 3 * 4", ['(', '10', '*', '20', '+', '3', '*', '7', '+', '2', '*', '3', '+', '10', '/', '3', '*', '4', ')'], ['10', '20', '*', '3', '7', '*', '+', '2', '3', '*', '+', '10', '3', '/', '4', '*', '+'], '+', ('*', '10', '20'), 239),
+        8: ("( -13 - -73 ) * ( 44 - -78 - 77 + 42 - -32 )", ['(', '(', '-13', '-', '-73', ')', '*', '(', '44', '-', '-78', '-', '77', '+', '42', '-', '-32', ')', ')'], ['-13', '-73', '-', '44', '-78', '-', '77', '-', '42', '+', '-32', '-', '*'], '*', ('-', '-13', '-73'), 7140),
+        9: ("-29 * 49 + 47 - 29 + 74 - -85 - -27 + 4 - 28", ['(', '-29', '*', '49', '+', '47', '-', '29', '+', '74', '-', '-85', '-', '-27', '+', '4', '-', '28', ')'], ['-29', '49', '*', '47', '+', '29', '-', '74', '+', '-85', '-', '-27', '-', '4', '+', '28', '-'], '-', ('*', '-29', '49'), -1241),
+        10: ("( 2 - 65 - ( -24 + -97 ) * -5 * -61 ) * ( -41 + 85 * 9 * -92 * ( 75 - 18 ) )", ['(', '(', '2', '-', '65', '-', '(', '-24', '+', '-97', ')', '*', '-5', '*', '-61', ')', '*', '(', '-41', '+', '85', '*', '9', '*', '-92', '*', '(', '75', '-', '18', ')', ')', ')'], ['2', '65', '-', '-24', '-97', '+', '-5', '*', '-61', '*', '-', '-41', '85', '9', '*', '-92', '*', '75', '18', '-', '*', '+', '*'], '*', ('-', '2', '65'), -147799088242)
     }
 
     for key, case in testCases.items():
@@ -299,8 +316,8 @@ def runTests():
         assert operationResponse.getLeftChild().getValue() == case[4][1]
         assert operationResponse.getRightChild().getValue() == case[4][2]
 
-        evalStep(parserResponse)
-        assert parserResponse.getRoot().getValue().isnumeric()
+        evalStepResponse = evalStep(parserResponse)
+        assert evalStepResponse == case[5]
         print('\n')
 
 
