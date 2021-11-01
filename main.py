@@ -26,15 +26,25 @@ class Node:
 class Tree:
     def __init__(self, root: Node):
         self.root = root
-
-    def getHeight(self):
-        return self.height
+        self.listNodes: list = []
 
     def getRootValue(self):
         return self.root.getValue()
 
     def getRoot(self):
         return self.root
+
+    def appendListNodes(self, value):
+        self.listNodes.append(value)
+
+    def clearListNodes(self):
+        self.listNodes = []
+
+    def listNodesToString(self):
+        str = ""
+        for item in self.listNodes:
+            str += item + " "
+        return str
 
 
 class Stack:
@@ -114,29 +124,50 @@ def popAndEnqueue(stack, queue):
     if item != "(" or item != ")":
         queue.enqueue(item)
 
-def toString(tree: Tree):
-    # if isOperator(node.getValue()):
-    #     right: Node = node.getRightChild()
-    #     left: Node = node.getLeftChild()
-    #     if isOperator(left.getValue()):
-    #         return toString(left)
-    #     elif isOperator(right.getValue()):
-    #         return toString(right)
-    # else:
-    #     return
-    return 0
+
+def isChildLowPriority(node: Node, child: Node):
+    priorityOne = ["+", "-"]
+    priorityZero = ["/", "*"]
+
+    return child.getValue() in priorityOne and node.getValue() in priorityZero
 
 
-def evaluate(right: int, left: int, operation: str):
+def toString(node: Node, tree: Tree):
+    if isOperator(node.getValue()):
+        right: Node = node.getRightChild()
+        left: Node = node.getLeftChild()
+        if left.getValue() is not None:
+            childWithLowPriority = isChildLowPriority(node, left)
+            if childWithLowPriority:
+                tree.appendListNodes("(")
+            toString(left, tree)
+            tree.appendListNodes(node.getValue())
+            if childWithLowPriority:
+                tree.appendListNodes(")")
+        if right.getValue() is not None:
+            childWithLowPriority = isChildLowPriority(node, right)
+            if childWithLowPriority:
+                tree.appendListNodes("(")
+            toString(right, tree)
+            if childWithLowPriority:
+                tree.appendListNodes(")")
+    else:
+        tree.appendListNodes(node.getValue())
+
+    if node == tree.getRoot():
+        print(tree.listNodesToString())
+
+
+def evaluate(right: float, left: float, operation: str):
     if operation == "+":
-        return right + left
+        return left + right
     elif operation == "-":
-        return right - left
+        return left - right
     elif operation == "*":
-        return right*left
+        return left*right
     elif operation == "/":
-        if left != 0:
-            return right/left
+        if right != 0:
+            return left/right
         else:
             print("Divisão por zero não permitida.")
             exit(0)
@@ -156,7 +187,7 @@ def walkToOperation(node: Node):
 
 
 def evalStep(tree: Tree):
-    # toString(tree)
+    toString(tree.getRoot(), tree)
     root: Node = tree.getRoot()
 
     while isOperator(root.getValue()):
@@ -164,19 +195,21 @@ def evalStep(tree: Tree):
         node = walkToOperation(root)
 
         # Casting para int
-        right = ord(node.getRightChild().getValue())
-        left = ord(node.getLeftChild().getValue())
+        right = float(node.getRightChild().getValue())
+        left = float(node.getLeftChild().getValue())
         operation = node.getValue()
 
         # Avaliando a operaçao
         result = evaluate(right, left, operation)
 
         # Substituindo na arvore
-        node.setValue(chr(result))
+        # Essa formataçao é pra tirar as casas decimais do float se necessario
+        node.setValue('{0:.2f}'.format(result).rstrip('0').rstrip('.'))
         node.setRightChild(None)
         node.setLeftChild(None)
 
-        # toString(tree)
+        tree.clearListNodes()
+        toString(tree.getRoot(), tree)
 
 
 def shuntingYard(tokens: list):
@@ -201,7 +234,7 @@ def shuntingYard(tokens: list):
         else:
             queue.enqueue(token)
 
-    # Se restar algo na stack (exemplo: parentenses extras) entao a operaçao é inválida e nao será realizada
+    # Se restar algo na stack (exemplo: parenteses extras) entao a operaçao é inválida e nao será realizada
     if stack.size() != 0:
         print("Operação Inválida!")
         exit(0)
@@ -249,6 +282,7 @@ def runTests():
     }
 
     for key, case in testCases.items():
+        print("Caso ", key)
         operation = case[0]
 
         lexerResponse = lexer(operation)
@@ -264,6 +298,10 @@ def runTests():
         assert operationResponse.getValue() == case[4][0]
         assert operationResponse.getLeftChild().getValue() == case[4][1]
         assert operationResponse.getRightChild().getValue() == case[4][2]
+
+        evalStep(parserResponse)
+        assert parserResponse.getRoot().getValue().isnumeric()
+        print('\n')
 
 
 if __name__ == '__main__':
