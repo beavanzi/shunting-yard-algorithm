@@ -150,7 +150,7 @@ def toString(node: Node, tree: Tree):
             toString(left, tree)
             if leftChildWithLowPriority:
                 tree.appendListNodes(")")
-            tree.appendListNodes(node.getValue())
+        tree.appendListNodes(node.getValue())
         if right.getValue() is not None:
             # Se o nó filho tem prioridade menor que o pai, então adicionar parenteses
             # rightChildWithLowPriority controla isso
